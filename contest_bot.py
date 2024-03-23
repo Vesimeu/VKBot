@@ -64,7 +64,11 @@ class ContestBot:
                     if is_vk_link:
                         return response, True, "Ссылка валидна"
                     else:
-                        return None, False, f"К сожалению, ваша ссылка не является ссылкой на ВКонтакте. Причина: {reason}"
+                        # Проверка ссылки на Яндекс Диск или Google Диск
+                        if "yandex" in response.lower() or "google" in response.lower():
+                            return response, True, "Ссылка валидна"
+                        else:
+                            return None, False, f"К сожалению, ваша ссылка не является ссылкой на ВКонтакте, Яндекс Диск или Google Диск. Причина: {reason}"
 
     def start_contest(self, user_id):
         self.send_message(user_id, "Приветствуем тебя, Первый! Сегодня стартует масштабный квест первичных отделений. Мы приглашаем тебя и твою команду выполнить творческие задания. Победу одержат самые дружные и активные первички!")
@@ -101,35 +105,40 @@ class ContestBot:
         self.send_message(user_id,
                           "1. Сними видео до 1 минуты с ответом на вопрос: «Что для меня Движение Первых?» Размести ролик на своей страничке ВК/сообществе отделения с тегами #ДвижениеПервых59 #КвестОтделений59. Проследи, чтобы страничка была открытой! Отправь ссылку на свой ролик нашему чат-боту.")
 
-        response, is_valid, reason = self.get_user_response(user_id)
-        if is_valid:
-            print(response)
-            # Сохранение ответа в базе данных и начисление баллов
-            self.db_handler.save_response(user_id, 1, response)
-            self.db_handler.update_score(user_id, 5)
+        while True:
+            response, is_valid, reason = self.get_user_response(user_id)
+            if is_valid:
+                print(response)
+                # Сохранение ответа в базе данных и начисление баллов
+                self.db_handler.save_response(user_id, 1, response)
+                self.db_handler.update_score(user_id, 5)
 
-            # Переход на следующий этап
-            self.send_message(user_id,
-                              "Отлично! Вы успешно завершили первый этап конкурса. Переходим к следующему этапу.")
-        else:
-            # В случае неверной ссылки, отправляем пользователю сообщение с причиной
-            self.send_message(user_id, reason)
+                # Переход на следующий этап
+                self.send_message(user_id,
+                                  "Отлично! Вы успешно завершили первый этап конкурса. Переходим к следующему этапу.")
+                break  # Выход из цикла, т.к. ответ корректный
+            else:
+                # В случае неверного ответа, отправляем пользователю сообщение с причиной и ожидаем нового ответа
+                self.send_message(user_id, reason)
+
     def stage_2(self, user_id):
         self.send_message(user_id,
                           "2. Моё первичное отделение. Сделай креативную фотографию своего первичного отделения. На фотографии должны быть представлены участники и ваш председатель. Опубликуй её на своей страничке ВК/сообществе отделения с хэштегами #ДвижениеПервых59 #КвестОтделений59. Проследи, чтобы страничка была открытой! Отправь ссылку на пост с фото нашему чат-боту.")
 
-        response, is_valid, reason = self.get_user_response(user_id)
-        if is_valid:
-            # Сохранение ответа в базе данных и начисление баллов
-            self.db_handler.save_response(user_id, 2, response)
-            self.db_handler.update_score(user_id, 5)
+        while True:
+            response, is_valid, reason = self.get_user_response(user_id)
+            if is_valid:
+                # Сохранение ответа в базе данных и начисление баллов
+                self.db_handler.save_response(user_id, 2, response)
+                self.db_handler.update_score(user_id, 5)
 
-            # Переход на следующий этап
-            self.send_message(user_id,
-                              "Отлично! Вы успешно завершили второй этап конкурса. Переходим к следующему этапу 'Викторина'.")
-        else:
-            # В случае неверной ссылки, отправляем пользователю сообщение с причиной
-            self.send_message(user_id, reason)
+                # Переход на следующий этап
+                self.send_message(user_id,
+                                  "Отлично! Вы успешно завершили второй этап конкурса. Переходим к следующему этапу 'Викторина'.")
+                break  # Выход из цикла, т.к. ответ корректный
+            else:
+                # В случае неверного ответа, отправляем пользователю сообщение с причиной и ожидаем нового ответа
+                self.send_message(user_id, reason)
 
     def stage_3(self, user_id):
         # Вопросы и ответы для викторины
@@ -221,55 +230,45 @@ class ContestBot:
                             self.send_message(user_id, f"Неправильно. Правильный ответ: {correct_answer}")
 
                         break  # Переходим к следующему вопросу
+
     def stage_4(self, user_id):
         self.send_message(user_id, "Создай презентацию из 4-5 слайдов в формате .pptx или .pdf. "
                                    "Отрази деятельность твоего первичного отделения и совета Первых первичного отделения. "
-                                   "Отправь сюда ссылку на яндекс или гугл диск с презентацией. !")
-        self.send_message(user_id, "Загрузите вашу презентацию на Яндекс Диск или Google Диск и отправьте ссылку сюда.")
+                                   "Отправь сюда ссылку на яндекс или гугл диск с презентацией!")
 
         # Ожидаем ответа от пользователя
-        for event in self.longpoll.listen():
-            if event.type == VkEventType.MESSAGE_NEW and event.to_me:
-                if event.user_id == user_id:
-                    response = event.text.strip()  # Получаем текст сообщения от пользователя
-
-                    # Проверка ссылки на яндекс или гугл диск
-                    if "yandex" in response.lower() or "google" in response.lower():
-                        # Сохранение ссылки в базе данных
-                        self.db_handler.save_presentation_link(user_id, response)
-                        # Начисление баллов
-                        self.db_handler.update_score(user_id, 5)
-                        self.send_message(user_id, "Спасибо! Ваша презентация успешно отправлена.")
-                        break
-                    else:
-                        self.send_message(user_id, "Пожалуйста, отправьте ссылку на презентацию в формате Яндекс Диск или Google Диск.")
+        while True:
+            response, is_valid, _ = self.get_user_response(user_id)
+            if is_valid and ("yandex" in response.lower() or "google" in response.lower()):
+                # Сохранение ссылки в базе данных
+                self.db_handler.save_presentation_link(user_id, response)
+                # Начисление баллов
+                self.db_handler.update_score(user_id, 5)
+                self.send_message(user_id, "Спасибо! Ваша презентация успешно отправлена.")
+                break
+            else:
+                self.send_message(user_id,
+                                  "Пожалуйста, отправьте ссылку на презентацию в формате Яндекс Диск или Google Диск.")
 
     def stage_5(self, user_id):
         self.send_message(user_id,
                           "5. Социально-значимое дело. Придумай и реализуй со своими единомышленниками полезное дело. Например, можно смастерить скворечник, прибраться во дворе, помочь бабушке из соседнего подъезда. Размести пост на своей страничке или в группе отделения с описанием и фотографией социально-значимого дела. Это может быть общий пост для всей вашей команды. Не забудьте указать своё первичное отделение и хештеги: #ДвижениеПервых59 #КвестОтделений59 Ждём ссылку от каждого участника команды, чтобы чат-бот посчитал вам баллы. Отправляй скорее!")
 
-        # Ожидание ответа от пользователя
-        for event in self.longpoll.listen():
-            if event.type == VkEventType.MESSAGE_NEW and event.to_me:
-                if event.user_id == user_id:
-                    response = event.text.strip()  # Получаем текст сообщения от пользователя
+        while True:
+            response, is_valid, _ = self.get_user_response(user_id)
+            if is_valid:
+                # Сохраняем ссылку в базе данных и начисляем баллы
+                self.db_handler.save_response(user_id, 5, response)
+                self.db_handler.update_score(user_id, 5)
 
-                    # Проверка ссылки на ВКонтакте
-                    is_vk_link, _ = self.check_vk_link(response)
-                    if is_vk_link:
-                        # Сохраняем ссылку в базе данных и начисляем баллы
-                        self.db_handler.save_response(user_id, 5, response)
-                        self.db_handler.update_score(user_id, 5)
-
-                        # Отправляем пользователю сообщение об успешном завершении конкурса
-                        self.send_message(user_id,
-                                          f"Отлично! Вы прошли последний этап конкурса! Суммарно вы набрали {self.db_handler.get_score(user_id)} баллов.")
-                    else:
-                        # В случае неверной ссылки, отправляем пользователю сообщение и продолжаем ожидать ответа
-                        self.send_message(user_id,
-                                          "К сожалению, ваша ссылка не является ссылкой на ВКонтакте. Попробуйте ещё раз.")
-
-    # Другие методы для выполнения различных этапов конкурса
+                # Отправляем пользователю сообщение об успешном завершении конкурса
+                self.send_message(user_id,
+                                  f"Отлично! Вы прошли последний этап конкурса! Суммарно вы набрали {self.db_handler.get_score(user_id)} баллов.")
+                break  # Выход из цикла, т.к. ответ корректный
+            else:
+                # В случае неверного ответа, отправляем пользователю сообщение и продолжаем ожидать ответа
+                self.send_message(user_id,
+                                  "К сожалению, ваша ссылка не является ссылкой на ВКонтакте. Попробуйте ещё раз.")
 
     # Создаем экземпляр бота и запускаем его
 if __name__ == "__main__":
