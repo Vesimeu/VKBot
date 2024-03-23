@@ -23,8 +23,27 @@ def view_table(db_file, table_name):
 
     conn.close()
 
+def reset_score(db_file, user_id):
+    try:
+        conn = sqlite3.connect(db_file)
+        cursor = conn.cursor()
+
+        # Обнуляем баллы для указанного пользователя
+        cursor.execute("UPDATE user_responses SET score=? WHERE user_id=?", (0, user_id))
+        conn.commit()
+        print(f"Баллы пользователя с идентификатором {user_id} были успешно обнулены.")
+
+    except sqlite3.Error as e:
+        print("Ошибка SQLite:", e)
+
+    finally:
+        if conn:
+            conn.close()
+
+
 if __name__ == "__main__":
     # Укажите путь к файлу базы данных и имя таблицы
     db_file = "contest_data.db"
     table_name = "user_responses"
+    # reset_score(db_file, 127802079)
     view_table(db_file, table_name)
